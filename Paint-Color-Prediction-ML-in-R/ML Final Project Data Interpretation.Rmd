@@ -1,0 +1,279 @@
+---
+title: "PPG Paint Colors: Final Project"
+subtitle: "Part4 : Data Interpretation"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading packages
+
+```{r, load_tidyverse}
+library(tidyverse)
+```
+
+## Loading all the nexessary modules
+
+```{r, read_final_data}
+trained_data <- readr::read_rds("trained_data.rds")
+viz_grid <- readr::read_rds("viz_grid.rds")
+mod2_default <- readr::read_rds("mod2_default.rds")
+
+gam_tune <- readr::read_rds("gam_tune.rds")
+enet_tune_mod10 <- readr::read_rds("enet_tune_mod10.rds")
+mod6_glmn_default <- readr::read_rds("mod6_glmn_default")
+
+```
+
+
+```{r, show_data_glimpse}
+trained_data %>% glimpse()
+```
+
+The data consist of continuous and categorical inputs. The `glimpse()` shown above reveals the data type for each variable which state to you whether the input is continuous or categorical. The RGB color model inputs, `R`, `G`, and `B` are continuous (dbl) inputs. The HSL color model inputs consist of 2 categorical inputs, `Lightness` and `Saturation`, and a continuous input, `Hue`. Two outputs are provided. The continuous output, `response`, and the Binary output, `outcome`. However, the data type of the Binary outcome is numeric because the Binary `outcome` is **encoded** as `outcome = 1` for the EVENT and `outcome = 0` for the NON-EVENT.  
+
+## Part iv: Interpretation – ivA) Input Importance
+
+### You must identify the best regression model and the best classification model.
+
+For Regression:
+
+Based on the RMSE Performance Metrics:
+
+The Best Regression model is:
+
+```{r}
+# Create a data frame with model names and their RMSE values
+model_rmse <- data.frame(
+  Model = c("Linear Regression", "glmnet", "Generalized Additive Model"),
+  RMSE = c(0.06981023, 0.05878489, 0.8222984)  
+)
+
+# Find the model with the smallest RMSE
+smallest_rmse_model <- model_rmse[which.min(model_rmse$RMSE), ]
+
+# Print the model with the smallest RMSE
+print(smallest_rmse_model)
+```
+The Best classification model i got was the mod2_default accuracy used while processing with the linear method whose accuracy was approximately 89.2%
+
+RMSE = 0.0587
+
+Best Classification Model
+
+```{r}
+mod2_default_accuracy <- max(mod2_default$resample$Accuracy)
+mod2_default_accuracy
+
+mod6_glmn_default_accuracy <- max(mod6_glmn_default$resample$Accuracy)
+mod6_glmn_default_accuracy
+
+gam_tune_accuracy <- max(gam_tune$resample$Accuracy)
+
+gam_tune_accuracy
+
+```
+
+
+Identifying the most important variables associated with my best performing models wrt Regression
+
+```{r}
+coef(enet_tune_mod10$finalModel, s = enet_tune_mod10$bestTune$lambda)
+
+# Extract coefficients and their corresponding variable names
+coef_data <- coef(enet_tune_mod10$finalModel, s = enet_tune_mod10$bestTune$lambda)
+coef_values <- coef_data[, 1]  # Extract coefficient values
+coef_names <- rownames(coef_data)  # Extract variable names
+
+# Convert to a data frame for easier manipulation
+coef_df <- data.frame(variable = coef_names, coefficient = coef_values)
+
+# Take the absolute values of coefficients
+coef_df$abs_coefficient <- abs(coef_df$coefficient)
+
+# Sort by absolute coefficient values in descending order
+coef_df <- coef_df[order(coef_df$abs_coefficient, decreasing = TRUE), ]
+
+# Print the top variables
+head(coef_df)
+```
+
+
+The output displays the predictor variables, their coefficients, and the absolute coefficients. Each coefficient represents the strength and direction of the relationship between a predictor variable and the response variable. Positive coefficients indicate a positive relationship, while negative coefficients indicate a negative relationship. The absolute coefficients indicate the importance of each predictor in predicting the response, with larger values suggesting stronger associations.
+
+### Identify the most important variables associated with your best performing models wrt ClassficTION
+
+```{r}
+coef(gam_tune$finalModel, s = gam_tune$bestTune$lambda)
+
+# Convert the output to a data frame for easier manipulation
+coef_df <- as.data.frame(coef(gam_tune$finalModel, s = gam_tune$bestTune$lambda))
+
+# Rename the column
+names(coef_df) <- "coefficient"
+
+# Add the variable names as a separate column
+coef_df$variable <- rownames(coef_df)
+
+# Order the data frame by absolute coefficient values
+coef_df <- coef_df[order(abs(coef_df$coefficient), decreasing = TRUE), ]
+
+# Print the top important variables
+top_variables <- coef_df[1:10, ]
+print(top_variables)
+```
+
+
+The output presents the top 10 variables associated with the Generalized Additive Model (GAM), ordered by the absolute value of their coefficients. Each variable corresponds to either a spline function or a categorical feature and is assigned a coefficient indicating its relationship with the response variable.
+
+Variables with larger coefficients, whether positive or negative, signify stronger associations with the response variable. Conversely, smaller coefficients suggest weaker associations. 
+
+These coefficients provide a quantitative measure of the influence of each variable on predicting the response within the GAM model.
+
+### Are the most important variables similar for the regression and classification tasks?
+
+**Regression and Classification Insights:**
+Both regression and classification tasks highlight the importance of Green (G) and Red (R) color components, indicating their significant role in predicting the response variable or class labels. However, while both G and R are influential, G appears to dominate over R in terms of its impact on the response variable.
+
+**Dominance of Color Model Inputs:**
+In both regression and classification analyses, the Green (G) color component emerges as more dominant compared to Red (R), suggesting a stronger influence on predicting the response or class labels. Conversely, the Red (R) component exhibits less significance, particularly in regression tasks, implying that variations in R may not contribute significantly to predictive accuracy.
+
+**Effectiveness of Color Model Inputs:**
+While the color model inputs, including R, G, B, Hue, Lightness, and Saturation, provide valuable insights into predicting popularity, they do not act independently in identifying popular paints. Instead, a complex interaction exists among these variables, indicating that popularity prediction relies on a combination of factors rather than any single variable alone.
+
+**Practical Implications for PPG:**
+The analysis offers actionable guidance for PPG by identifying specific color ranges associated with higher probabilities of popularity. By synthesizing colors within these identified ranges, PPG can potentially create products that align more closely with consumer preferences and enhance their market appeal.
+
+
+Overall, While color model inputs serve as crucial predictors in understanding popularity trends, their effectiveness in isolation may be limited. It is the combination and interaction of these color values that ultimately contribute to predicting popular paints, highlighting the need for a comprehensive approach in color development efforts.
+
+
+### Part iv: Interpretation – ivB) Input insights
+
+FOr regression
+
+```{r}
+library(caret)
+
+library(splines)
+
+# Specify the resampling scheme with savePredictions = 'final'
+my_ctrl <- trainControl(method = "repeatedcv", 
+                        number = 5, 
+                        savePredictions = 'final')
+
+# Selecting a primary performance metric to use to compare the models
+my_metric <- 'RMSE'
+
+# Train the model with the updated trainControl specifications
+set.seed(1234)
+enet_default_mod10B <- train(y ~ (ns(R, df = 3) + ns(G, df = 3) + ns(B, df = 3)) * Lightness,
+                            data = trained_data,
+                            method = 'glmnet',
+                            metric = my_metric,
+                            preProcess = c("center", "scale"),
+                            trControl = my_ctrl)
+
+enet_default_mod10B
+```
+
+After training the model using the updated `trainControl()` specifications, which include `savePredictions = 'final'`, predictions can be made on the held-out data to assess the model's performance on unseen data. This process allows for a comprehensive evaluation of the model's predictive capabilities beyond the training data, providing valuable insights into its generalization ability and effectiveness in real-world scenarios.
+
+#### Predictions
+
+```{r}
+# Access the predictions made on the hold-out sets during cross-validation
+predictions <- enet_default_mod10B$pred$pred
+
+# Extract the relevant columns from the original dataset
+original_data <- trained_data[, c("R", "G", "B", "Hue", "Saturation", "Lightness")]
+
+# Bind the predictions with the original dataset
+combined_data <- cbind(original_data, predictions)
+
+# View the combined dataset
+head(combined_data)
+
+```
+
+
+Classification
+
+Defining this model again because previous I did not use saveprediction in trainControl()
+
+```{r}
+library(caret)
+df4_caret <- trained_data %>% 
+  mutate(outcome = ifelse(outcome == 1, 'popular', 'unpopular')) %>% 
+  mutate(outcome = factor(outcome, levels = c("popular", "unpopular"))) %>% 
+  select(R, G, B, Hue, Saturation, Lightness, outcome)
+
+df4_caret %>% glimpse()
+
+
+my_ctrl <- trainControl(method = "repeatedcv", 
+                        number = 10,
+                        repeats = 3,
+                        savePredictions = 'final')
+
+my_metric_p3 <- "Accuracy"
+```
+Generalized Additive Model according to output in Part2 and 3:
+
+```{r}
+# Set seed for reproducibility
+set.seed(1234)
+
+gam_model2 <- train(
+  outcome ~ .,
+  data = df4_caret,
+  method = "gam",
+  metric = "Accuracy",
+  trControl = my_ctrl,
+  tuneGrid = expand.grid(
+    select = c(0.1, 0.2, 0.3),  # Specify the smoothing parameter values to tune
+    method = "GCV.Cp"            # Specify the method for tuning the smoothing parameter
+  )
+)
+```
+
+
+Prediction for Classification
+
+```{r}
+# Access the predictions made on the hold-out sets during cross-validation
+predictions <- gam_model2$pred$pred
+
+# Extract the relevant columns from the original dataset
+original_data <- trained_data[, c("R", "G", "B", "Hue", "Saturation", "Lightness")]
+
+# Bind the predictions with the original dataset
+combined_data_classification <- cbind(original_data, predictions)
+
+# View the combined dataset
+head(combined_data_classification)
+```
+
+
+Based on the analysis of the plots for regression and classification, the combinations of Lightness and Saturation that appear to be the hardest to predict are:
+
+1. Saturation: Gray, Lightness: dark
+
+These combinations likely pose challenges for prediction due to their low variability or distinctiveness compared to other combinations. The monochromatic nature of gray saturation and dark lightness may result in less discernible patterns, making it difficult for the model to accurately predict outcomes.
+
+Conversely, the combinations that appear to be the easiest to predict in both regression and classification tasks are:
+
+1. Saturation: bright, muted, shaded, pure, neutral
+2. Lightness: Soft, saturated, and pale
+
+These combinations likely exhibit more distinct and discernible patterns, allowing the model to capture and generalize their relationships with the response variable more effectively. Bright and varied saturations, along with soft, saturated, and pale lightness values, provide richer and more diverse data points for the model to learn from, resulting in more accurate predictions.
+
+
+
+
+
+
